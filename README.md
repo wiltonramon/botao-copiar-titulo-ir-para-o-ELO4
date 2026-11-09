@@ -1,13 +1,13 @@
 # INFODIP - Botão copiar título e ir para o ELO 4
 
-Script de usuário para Tampermonkey que adiciona dois atalhos ao lado do título eleitoral na página de detalhes da comunicação do INFODIP. A versão publicada neste repositório é a **2.3.7**.
+Script de usuário para Tampermonkey que adiciona dois atalhos ao lado do título eleitoral na página de detalhes da comunicação do INFODIP. A versão publicada neste repositório é a **2.3.8**.
 
 ## Funcionalidades
 
 | Atalho | O que faz |
 | --- | --- |
 | **Copiar título eleitoral** | Copia os 12 dígitos sem espaços. O aviso de sucesso exibe o título em três blocos de quatro dígitos (`0000 0000 0000`). |
-| **Abrir no sistema ELO 4** | Abre o cadastro do eleitor em uma nova aba, dentro do quadro principal do ELO 4, para manter a navegação pelos menus. |
+| **Abrir no sistema ELO 4** | Abre a entrada do seu perfil em uma nova aba, aguarda o atendimento e carrega o cadastro no quadro principal do ELO 4. |
 
 - Exibe ícones vetoriais. O botão azul copia o título e o botão verde abre o ELO 4.
 - Localiza o título na célula logo após o campo **Sexo** na tabela do INFODIP.
@@ -22,7 +22,10 @@ O script está espelhado no [Greasy Fork](https://greasyfork.org/pt-BR/scripts/5
 
 1. Com o Tampermonkey instalado, use o botão de instalação na página do Greasy Fork.
 2. Acesse o INFODIP com sua conta e abra a página de detalhes de uma comunicação que tenha título eleitoral.
-3. Use os ícones ao lado do título. A consulta direta usa o acesso institucional ao ELO 4.
+3. Na primeira vez que clicar em **Abrir no sistema ELO 4**, cole o endereço da barra do ELO 4 usado para entrar com seu perfil. O link precisa ser da página `ELO.jsp` e conter `contextoSAE`.
+4. Aguarde a tela de atendimento. O script abre o cadastro no quadro principal quando essa tela estiver pronta.
+
+O endereço do perfil fica salvo no navegador. Para trocar o perfil configurado, mantenha **Shift** pressionado ao clicar no botão do ELO 4 e informe o novo endereço.
 
 Para instalar manualmente pelo GitHub, abra [copiar-titulo-eleitoral.user.js](copiar-titulo-eleitoral.user.js), use **Raw** para acessar o código e cole-o no editor do Tampermonkey. Se já tiver o script instalado, substitua o código na instalação existente.
 

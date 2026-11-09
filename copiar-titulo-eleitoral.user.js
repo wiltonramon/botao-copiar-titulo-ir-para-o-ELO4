@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         INFODIP - Botão copiar título e ir para o ELO 4
 // @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
-// @version      2.3.7
+// @version      2.3.8
 // @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
+// @match        https://cad-elo.tse.jus.br/sae/jsp/ELO.jsp*
 // @grant        none
 // @license      MIT
 // @downloadURL https://update.greasyfork.org/scripts/547853/Copiar%20T%C3%ADtulo%20Eleitoral%20%28Ultra%20Otimizado%20v22%29%2010082026.user.js
@@ -18,12 +19,16 @@
     const ACOES = '[data-infodip-titulo-acoes]';
     const NOTIFICACAO = 'titulo-eleitoral-notificacao';
     const ENTRADA_ELO = 'https://cad-elo.tse.jus.br/sae/jsp/ELO.jsp';
+    const ATENDIMENTO_ELO = '/sae/jsp/ConsultaAtendimento.jsp';
     const CONSULTA_ELEITOR = '/sae/jsp/ResConsultaEleitor.jsp';
+    const CHAVE_ENTRADA = 'infodip-entrada-elo4';
+    const FRAGMENTO_TITULO = 'infodip-titulo';
     const CHAVE_DEPURACAO = 'te-debug';
     const estatisticas = { buscas: 0, titulos: 0, copias: 0, aberturas: 0 };
     let quadroPendente = null;
     let temporizadorNotificacao;
     let depuracaoNaAba = null;
+    let entradaConfigurada = null;
 
     function depuracaoAtiva() {
         if (depuracaoNaAba !== null) return depuracaoNaAba;
@@ -155,6 +160,94 @@
         return svg;
     }
 
+    function entradaComPerfil(endereco) {
+        if (!endereco) return null;
+
+        try {
+            const origem = new URL(endereco.trim());
+            const destino = new URL(ENTRADA_ELO);
+            if (origem.origin !== destino.origin || origem.pathname !== destino.pathname) return null;
+
+            const contexto = origem.searchParams.get('contextoSAE');
+            if (!JSON.parse(contexto)?.ambientePerfil) return null;
+            destino.searchParams.set('contextoSAE', contexto);
+            destino.searchParams.set('url', ATENDIMENTO_ELO);
+            return destino.href;
+        } catch {
+            return null;
+        }
+    }
+
+    function enderecoCadastro(numero) {
+        const url = new URL(CONSULTA_ELEITOR, ENTRADA_ELO);
+        url.searchParams.set('num_inscricao', numero);
+        return url;
+    }
+
+    function enderecoAtalho(numero) {
+        const url = new URL(entradaConfigurada ?? ENTRADA_ELO);
+        if (entradaConfigurada) {
+            // O título fica no fragmento até o atendimento estar pronto no ELO.
+            url.hash = new URLSearchParams({ [FRAGMENTO_TITULO]: numero }).toString();
+        } else {
+            const consulta = enderecoCadastro(numero);
+            url.searchParams.set('url', consulta.pathname + consulta.search);
+        }
+        return url.href;
+    }
+
+    function configurarEntradaElo() {
+        const informado = window.prompt(
+            'Cole o endereço do primeiro acesso ao ELO 4, com o contextoSAE do seu perfil.',
+            entradaConfigurada ?? ''
+        );
+        if (informado === null) return false;
+
+        const entrada = entradaComPerfil(informado);
+        if (!entrada) {
+            window.alert('Use o endereço da página ELO.jsp com o contextoSAE do seu perfil.');
+            return false;
+        }
+
+        entradaConfigurada = entrada;
+        try {
+            localStorage.setItem(CHAVE_ENTRADA, entrada);
+        } catch {
+            // Com o armazenamento bloqueado, a configuração vale nesta aba.
+        }
+        for (const grupo of document.querySelectorAll(ACOES)) {
+            const link = grupo.querySelector('.infodip-titulo-acao-elo');
+            if (link) link.href = enderecoAtalho(grupo.dataset.infodipTituloAcoes);
+        }
+        return true;
+    }
+
+    function encaminharCadastroNoElo() {
+        if (window.top !== window) return;
+
+        const pagina = new URL(location.href);
+        const numero = new URLSearchParams(pagina.hash.slice(1)).get(FRAGMENTO_TITULO);
+        if (!/^\d{12}$/.test(numero ?? '')) return;
+
+        const quadro = document.querySelector('frame[name="principal"], iframe[name="principal"]');
+        if (!quadro) return;
+
+        function encaminhar() {
+            const atendimento = quadro.contentDocument;
+            if (atendimento?.readyState !== 'complete' ||
+                new URL(atendimento.URL).pathname !== ATENDIMENTO_ELO ||
+                !atendimento.querySelector('form')) return;
+
+            quadro.removeEventListener('load', encaminhar);
+            pagina.hash = '';
+            history.replaceState(history.state, '', pagina.href);
+            quadro.src = enderecoCadastro(numero).href;
+        }
+
+        quadro.addEventListener('load', encaminhar);
+        encaminhar();
+    }
+
     function criarAcoes(numero) {
         const acoes = document.createElement('span');
         acoes.dataset.infodipTituloAcoes = numero;
@@ -180,12 +273,7 @@
         });
 
         const abrir = document.createElement('a');
-        const url = new URL(ENTRADA_ELO);
-        const consulta = new URL(CONSULTA_ELEITOR, url);
-        consulta.searchParams.set('num_inscricao', numero);
-        // O ELO carrega a consulta no quadro principal usado pelos menus.
-        url.searchParams.set('url', consulta.pathname + consulta.search);
-        abrir.href = url.href;
+        abrir.href = enderecoAtalho(numero);
         abrir.target = '_blank';
         abrir.rel = 'noopener noreferrer';
         abrir.className = 'infodip-titulo-acao infodip-titulo-acao-elo';
@@ -196,6 +284,14 @@
         ));
         abrir.addEventListener('click', evento => {
             evento.stopPropagation();
+            if ((!entradaConfigurada || evento.shiftKey) && !configurarEntradaElo()) {
+                evento.preventDefault();
+                return;
+            }
+            if (evento.shiftKey) {
+                evento.preventDefault();
+                return;
+            }
             estatisticas.aberturas++;
         });
 
@@ -263,6 +359,11 @@
     }
 
     function inicializar() {
+        try {
+            entradaConfigurada = entradaComPerfil(localStorage.getItem(CHAVE_ENTRADA));
+        } catch {
+            // O atalho ainda permite configurar o perfil nesta aba.
+        }
         instalarEstilos();
         atualizarAcoes();
 
@@ -286,18 +387,21 @@
         });
     }
 
-    window.exibirEstatisticasTituloEleitoral = () => {
-        const dados = { ...estatisticas };
-        console.table(dados);
-        return dados;
-    };
+    const noElo = location.origin === new URL(ENTRADA_ELO).origin;
+    if (!noElo) {
+        window.exibirEstatisticasTituloEleitoral = () => {
+            const dados = { ...estatisticas };
+            console.table(dados);
+            return dados;
+        };
+        window.ativarDebugTituloEleitoral = () => definirDepuracao(true);
+        window.desativarDebugTituloEleitoral = () => definirDepuracao(false);
+    }
 
-    window.ativarDebugTituloEleitoral = () => definirDepuracao(true);
-    window.desativarDebugTituloEleitoral = () => definirDepuracao(false);
-
+    const iniciar = noElo ? encaminharCadastroNoElo : inicializar;
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', inicializar, { once: true });
+        document.addEventListener('DOMContentLoaded', iniciar, { once: true });
     } else {
-        inicializar();
+        iniciar();
     }
 })();
