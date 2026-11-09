@@ -1,13 +1,13 @@
 # INFODIP - Botão copiar título e ir para o ELO 4
 
-Script de usuário para Tampermonkey que adiciona dois atalhos ao lado do título eleitoral na página de detalhes da comunicação do INFODIP. A versão publicada neste repositório é a **2.3.3**.
+Script de usuário para Tampermonkey que adiciona dois atalhos ao lado do título eleitoral na página de detalhes da comunicação do INFODIP. A versão publicada neste repositório é a **2.3.4**.
 
 ## Funcionalidades
 
 | Atalho | O que faz |
 | --- | --- |
 | 📋 **Copiar título eleitoral** | Copia os 12 dígitos para a área de transferência e exibe uma confirmação ou aviso de falha. |
-| ➡️ **Abrir no sistema ELO 4** | Abre o cadastro do eleitor em uma nova aba, usando a consulta direta com o parâmetro `num_inscricao`. |
+| ➡️ **Abrir no sistema ELO 4** | Abre o cadastro do eleitor em uma nova aba, dentro do quadro principal do ELO 4, para manter a navegação pelos menus. |
 
 - Localiza o título na célula logo após o campo **Sexo** na tabela do INFODIP.
 - Preserva zeros à esquerda. Quando o título tem 11 dígitos, acrescenta um zero no início.

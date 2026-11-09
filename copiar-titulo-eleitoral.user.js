@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         INFODIP - Botão copiar título e ir para o ELO 4
 // @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
-// @version      2.3.3
+// @version      2.3.4
 // @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
@@ -17,7 +17,8 @@
     const AREAS = '.requestBox, #detalhes-individualizacao';
     const ACOES = '[data-infodip-titulo-acoes]';
     const NOTIFICACAO = 'titulo-eleitoral-notificacao';
-    const CONSULTA_ELO = 'https://cad-elo.tse.jus.br/sae/jsp/ResConsultaEleitor.jsp';
+    const ENTRADA_ELO = 'https://cad-elo.tse.jus.br/sae/jsp/ELO.jsp';
+    const CONSULTA_ELEITOR = '/sae/jsp/ResConsultaEleitor.jsp';
     const CHAVE_DEPURACAO = 'te-debug';
     const estatisticas = { buscas: 0, titulos: 0, copias: 0, aberturas: 0 };
     let quadroPendente = null;
@@ -117,8 +118,11 @@
         });
 
         const abrir = document.createElement('a');
-        const url = new URL(CONSULTA_ELO);
-        url.searchParams.set('num_inscricao', numero);
+        const url = new URL(ENTRADA_ELO);
+        const consulta = new URL(CONSULTA_ELEITOR, url);
+        consulta.searchParams.set('num_inscricao', numero);
+        // O ELO carrega a consulta no quadro principal usado pelos menus.
+        url.searchParams.set('url', consulta.pathname + consulta.search);
         abrir.href = url.href;
         abrir.target = '_blank';
         abrir.rel = 'noopener noreferrer';
