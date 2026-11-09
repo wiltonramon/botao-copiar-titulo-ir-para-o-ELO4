@@ -1,12 +1,15 @@
 // ==UserScript==
 // @name         INFODIP - Botão copiar título e ir para o ELO 4
 // @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
-// @version      2.3.8
+// @version      2.3.9
 // @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
 // @match        https://cad-elo.tse.jus.br/sae/jsp/ELO.jsp*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_addValueChangeListener
+// @grant        unsafeWindow
 // @license      MIT
 // @downloadURL https://update.greasyfork.org/scripts/547853/Copiar%20T%C3%ADtulo%20Eleitoral%20%28Ultra%20Otimizado%20v22%29%2010082026.user.js
 // @updateURL https://update.greasyfork.org/scripts/547853/Copiar%20T%C3%ADtulo%20Eleitoral%20%28Ultra%20Otimizado%20v22%29%2010082026.meta.js
@@ -18,6 +21,7 @@
     const AREAS = '.requestBox, #detalhes-individualizacao';
     const ACOES = '[data-infodip-titulo-acoes]';
     const NOTIFICACAO = 'titulo-eleitoral-notificacao';
+    const DIALOGO_ELO = 'infodip-preparar-elo4';
     const ENTRADA_ELO = 'https://cad-elo.tse.jus.br/sae/jsp/ELO.jsp';
     const ATENDIMENTO_ELO = '/sae/jsp/ConsultaAtendimento.jsp';
     const CONSULTA_ELEITOR = '/sae/jsp/ResConsultaEleitor.jsp';
@@ -113,6 +117,26 @@
                 font: 600 14px/1.3 ui-monospace, Consolas, monospace;
                 color: var(--destaque); white-space: nowrap;
             }
+            #${DIALOGO_ELO} {
+                box-sizing: border-box; width: 374px; max-width: calc(100vw - 32px);
+                padding: 20px; border: 1px solid #d6e3e8; border-radius: 12px;
+                background: #fff; color: #203348; font: 14px/1.5 Arial, sans-serif;
+                box-shadow: 0 12px 32px rgba(15, 23, 42, .2);
+            }
+            #${DIALOGO_ELO}::backdrop { background: rgba(15, 23, 42, .32); }
+            #${DIALOGO_ELO} h2 { margin: 0 0 6px; font: 700 18px/1.3 Arial, sans-serif; }
+            #${DIALOGO_ELO} p { margin: 0 0 12px; }
+            #${DIALOGO_ELO} [role="status"] { color: #8a3a19; }
+            #${DIALOGO_ELO}[data-pronto] [role="status"] { color: #1b6255; }
+            #${DIALOGO_ELO} [role="status"]:empty { display: none; }
+            #${DIALOGO_ELO} form { display: flex; gap: 8px; justify-content: flex-end; margin: 0; }
+            #${DIALOGO_ELO} button {
+                border: 1px solid #c8d8df; border-radius: 7px; padding: 7px 11px;
+                color: #203348; background: #fff; font: 600 13px/1.4 Arial, sans-serif; cursor: pointer;
+            }
+            #${DIALOGO_ELO} [data-continuar] {
+                border-color: #1b6255; background: #1b6255; color: #fff;
+            }
         `;
         document.head.append(estilo);
     }
@@ -196,56 +220,98 @@
         return url.href;
     }
 
-    function configurarEntradaElo() {
-        const informado = window.prompt(
-            'Cole o endereço do primeiro acesso ao ELO 4, com o contextoSAE do seu perfil.',
-            entradaConfigurada ?? ''
-        );
-        if (informado === null) return false;
+    function lerEntradaElo() {
+        const entrada = entradaComPerfil(GM_getValue(CHAVE_ENTRADA, null));
+        if (entrada) return entrada;
 
-        const entrada = entradaComPerfil(informado);
-        if (!entrada) {
-            window.alert('Use o endereço da página ELO.jsp com o contextoSAE do seu perfil.');
-            return false;
+        // Aproveita a configuração feita no INFODIP na versão anterior.
+        let anterior;
+        try {
+            anterior = entradaComPerfil(localStorage.getItem(CHAVE_ENTRADA));
+        } catch {
+            return null;
         }
+        if (anterior) GM_setValue(CHAVE_ENTRADA, anterior);
+        return anterior;
+    }
+
+    function atualizarEntradaElo(entrada = lerEntradaElo()) {
+        if (entrada === entradaConfigurada) return;
 
         entradaConfigurada = entrada;
-        try {
-            localStorage.setItem(CHAVE_ENTRADA, entrada);
-        } catch {
-            // Com o armazenamento bloqueado, a configuração vale nesta aba.
-        }
         for (const grupo of document.querySelectorAll(ACOES)) {
             const link = grupo.querySelector('.infodip-titulo-acao-elo');
             if (link) link.href = enderecoAtalho(grupo.dataset.infodipTituloAcoes);
         }
-        return true;
+        const dialogo = document.getElementById(DIALOGO_ELO);
+        if (dialogo) {
+            dialogo.toggleAttribute('data-pronto', Boolean(entrada));
+            dialogo.querySelector('[role="status"]').textContent = entrada
+                ? 'Perfil reconhecido. Clique em Continuar.'
+                : '';
+        }
     }
 
-    function encaminharCadastroNoElo() {
+    function orientarPrimeiroAcesso(numero) {
+        const dialogo = document.createElement('dialog');
+        dialogo.id = DIALOGO_ELO;
+        dialogo.setAttribute('aria-labelledby', 'infodip-preparar-elo4-titulo');
+        dialogo.setAttribute('aria-describedby', 'infodip-preparar-elo4-orientacao');
+        dialogo.innerHTML = `
+            <h2 id="infodip-preparar-elo4-titulo">Preparar acesso ao ELO 4</h2>
+            <p id="infodip-preparar-elo4-orientacao">Acesse o ELO 4 em outra aba pelo caminho habitual.
+                Quando a tela de atendimento abrir, volte aqui e clique em <strong>Continuar</strong>.</p>
+            <p role="status"></p>
+            <form method="dialog">
+                <button>Cancelar</button>
+                <button type="button" data-continuar>Continuar</button>
+            </form>
+        `;
+        dialogo.querySelector('[data-continuar]').addEventListener('click', () => {
+            atualizarEntradaElo();
+            if (!entradaConfigurada) {
+                dialogo.querySelector('[role="status"]').textContent =
+                    'Abra o ELO 4 ou recarregue a aba dele se já estiver aberta.';
+                return;
+            }
+            dialogo.close();
+            window.open(enderecoAtalho(numero), '_blank', 'noopener,noreferrer');
+            estatisticas.aberturas++;
+        });
+        dialogo.addEventListener('close', () => dialogo.remove(), { once: true });
+        document.body.append(dialogo);
+        dialogo.showModal();
+    }
+
+    function iniciarNoElo() {
         if (window.top !== window) return;
 
         const pagina = new URL(location.href);
-        const numero = new URLSearchParams(pagina.hash.slice(1)).get(FRAGMENTO_TITULO);
-        if (!/^\d{12}$/.test(numero ?? '')) return;
+        const entrada = entradaComPerfil(pagina.href);
+        const pedido = new URLSearchParams(pagina.hash.slice(1)).get(FRAGMENTO_TITULO);
+        const numero = /^\d{12}$/.test(pedido ?? '') ? pedido : null;
+        if (!entrada && !numero) return;
 
         const quadro = document.querySelector('frame[name="principal"], iframe[name="principal"]');
         if (!quadro) return;
 
-        function encaminhar() {
+        function aoCarregarAtendimento() {
             const atendimento = quadro.contentDocument;
             if (atendimento?.readyState !== 'complete' ||
                 new URL(atendimento.URL).pathname !== ATENDIMENTO_ELO ||
                 !atendimento.querySelector('form')) return;
 
-            quadro.removeEventListener('load', encaminhar);
+            quadro.removeEventListener('load', aoCarregarAtendimento);
+            if (entrada && !pedido) GM_setValue(CHAVE_ENTRADA, entrada);
+            if (!numero) return;
+
             pagina.hash = '';
             history.replaceState(history.state, '', pagina.href);
             quadro.src = enderecoCadastro(numero).href;
         }
 
-        quadro.addEventListener('load', encaminhar);
-        encaminhar();
+        quadro.addEventListener('load', aoCarregarAtendimento);
+        aoCarregarAtendimento();
     }
 
     function criarAcoes(numero) {
@@ -284,12 +350,10 @@
         ));
         abrir.addEventListener('click', evento => {
             evento.stopPropagation();
-            if ((!entradaConfigurada || evento.shiftKey) && !configurarEntradaElo()) {
+            atualizarEntradaElo();
+            if (!entradaConfigurada) {
                 evento.preventDefault();
-                return;
-            }
-            if (evento.shiftKey) {
-                evento.preventDefault();
+                orientarPrimeiroAcesso(numero);
                 return;
             }
             estatisticas.aberturas++;
@@ -359,13 +423,12 @@
     }
 
     function inicializar() {
-        try {
-            entradaConfigurada = entradaComPerfil(localStorage.getItem(CHAVE_ENTRADA));
-        } catch {
-            // O atalho ainda permite configurar o perfil nesta aba.
-        }
+        entradaConfigurada = lerEntradaElo();
         instalarEstilos();
         atualizarAcoes();
+        GM_addValueChangeListener(CHAVE_ENTRADA, (_, anterior, atual) =>
+            atualizarEntradaElo(entradaComPerfil(atual))
+        );
 
         const observador = new MutationObserver(mutacoes => {
             if (quadroPendente !== null || !mutacoes.some(afetaAreas)) return;
@@ -389,16 +452,24 @@
 
     const noElo = location.origin === new URL(ENTRADA_ELO).origin;
     if (!noElo) {
-        window.exibirEstatisticasTituloEleitoral = () => {
+        const pagina = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+        function exporComando(nome, comando) {
+            if (pagina !== window && typeof exportFunction === 'function') {
+                exportFunction(comando, pagina, { defineAs: nome });
+            } else {
+                pagina[nome] = comando;
+            }
+        }
+        exporComando('exibirEstatisticasTituloEleitoral', () => {
             const dados = { ...estatisticas };
             console.table(dados);
-            return dados;
-        };
-        window.ativarDebugTituloEleitoral = () => definirDepuracao(true);
-        window.desativarDebugTituloEleitoral = () => definirDepuracao(false);
+            return pagina !== window && typeof cloneInto === 'function' ? cloneInto(dados, pagina) : dados;
+        });
+        exporComando('ativarDebugTituloEleitoral', () => definirDepuracao(true));
+        exporComando('desativarDebugTituloEleitoral', () => definirDepuracao(false));
     }
 
-    const iniciar = noElo ? encaminharCadastroNoElo : inicializar;
+    const iniciar = noElo ? iniciarNoElo : inicializar;
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', iniciar, { once: true });
     } else {
