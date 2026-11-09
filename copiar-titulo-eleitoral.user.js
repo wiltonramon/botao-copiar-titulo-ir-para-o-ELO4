@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         INFODIP - Botão copiar título e ir para o ELO 4
 // @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
-// @version      2.3.4
+// @version      2.3.5
 // @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
@@ -55,17 +55,29 @@
     function instalarEstilos() {
         const estilo = document.createElement('style');
         estilo.textContent = `
-            ${ACOES} { display: inline; margin-left: 8px; white-space: nowrap; }
+            ${ACOES} {
+                display: inline-flex; align-items: center; gap: 4px;
+                margin-left: 8px; vertical-align: middle;
+            }
             ${ACOES} > .infodip-titulo-acao {
-                appearance: none; display: inline-block; padding: 0; border: 0;
-                background: transparent; color: inherit; text-decoration: none;
-                font: inherit; font-size: 14px; line-height: 1; cursor: pointer;
-                position: relative; top: -1px; margin: 0 2px; opacity: .7;
-                vertical-align: baseline; transition: opacity .2s, transform .2s;
+                --fundo: #edf4ff; --fundo-hover: #dbeaff; --borda: #c4d9f9; --traco: #204e91;
+                appearance: none; display: inline-grid; place-items: center;
+                box-sizing: border-box; width: 24px; height: 24px; padding: 0;
+                border: 1px solid var(--borda); border-radius: 7px;
+                background-color: var(--fundo); color: var(--traco);
+                text-decoration: none; line-height: 1; cursor: pointer;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, .09);
+                transition: background-color .15s, border-color .15s;
+            }
+            ${ACOES} > .infodip-titulo-acao-elo {
+                --fundo: #eaf7f3; --fundo-hover: #d6efe6; --borda: #bcdfd2; --traco: #1b6255;
+            }
+            ${ACOES} > .infodip-titulo-acao > svg {
+                display: block; width: 16px; height: 16px; pointer-events: none;
             }
             ${ACOES} > .infodip-titulo-acao:hover,
             ${ACOES} > .infodip-titulo-acao:focus-visible {
-                opacity: 1; transform: scale(1.1);
+                background-color: var(--fundo-hover); border-color: currentColor;
             }
             ${ACOES} > .infodip-titulo-acao:focus-visible {
                 outline: 2px solid currentColor; outline-offset: 2px;
@@ -96,6 +108,24 @@
         temporizadorNotificacao = setTimeout(() => aviso.remove(), 2000);
     }
 
+    function criarIcone(tracado) {
+        const namespace = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(namespace, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('focusable', 'false');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.9');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+
+        const linha = document.createElementNS(namespace, 'path');
+        linha.setAttribute('d', tracado);
+        svg.append(linha);
+        return svg;
+    }
+
     function criarAcoes(numero) {
         const acoes = document.createElement('span');
         acoes.dataset.infodipTituloAcoes = numero;
@@ -105,7 +135,10 @@
         copiar.className = 'infodip-titulo-acao';
         copiar.title = `Copiar título eleitoral (${numero})`;
         copiar.setAttribute('aria-label', 'Copiar título eleitoral');
-        copiar.textContent = '📋';
+        copiar.append(criarIcone(
+            'M7 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1 ' +
+            'M11 9h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z'
+        ));
         copiar.addEventListener('click', async evento => {
             evento.stopPropagation();
             try {
@@ -126,10 +159,12 @@
         abrir.href = url.href;
         abrir.target = '_blank';
         abrir.rel = 'noopener noreferrer';
-        abrir.className = 'infodip-titulo-acao';
+        abrir.className = 'infodip-titulo-acao infodip-titulo-acao-elo';
         abrir.title = 'Abrir no sistema ELO 4';
         abrir.setAttribute('aria-label', abrir.title);
-        abrir.textContent = '➡️';
+        abrir.append(criarIcone(
+            'M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7 M13 11l7-7 M15 4h5v5'
+        ));
         abrir.addEventListener('click', evento => {
             evento.stopPropagation();
             estatisticas.aberturas++;
