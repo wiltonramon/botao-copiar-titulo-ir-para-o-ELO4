@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         INFODIP - Botão copiar título e ir para o ELO 4
 // @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
-// @version      2.3.5
+// @version      2.3.6
 // @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
@@ -55,9 +55,11 @@
     function instalarEstilos() {
         const estilo = document.createElement('style');
         estilo.textContent = `
+            /* Mantém o título e o grupo de atalhos juntos em células estreitas. */
+            :has(> ${ACOES}) { white-space: nowrap; }
             ${ACOES} {
                 display: inline-flex; align-items: center; gap: 4px;
-                margin-left: 8px; vertical-align: middle;
+                margin-left: 6px; vertical-align: middle;
             }
             ${ACOES} > .infodip-titulo-acao {
                 --fundo: #edf4ff; --fundo-hover: #dbeaff; --borda: #c4d9f9; --traco: #204e91;
