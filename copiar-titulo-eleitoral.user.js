@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Copiar Título Eleitoral (Ultra Otimizado v2.2) 10.08.2026
-// @namespace    http://tampermonkey.net/
-// @version      2.3.2
-// @description  Copia o título eleitoral no INFODIP e abre a consulta direta ao cadastro no ELO.
+// @name         INFODIP - Botão copiar título e ir para o ELO 4
+// @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
+// @version      2.3.3
+// @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
 // @grant        none
