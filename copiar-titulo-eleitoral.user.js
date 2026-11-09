@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         INFODIP - Botão copiar título e ir para o ELO 4
 // @namespace    https://github.com/wiltonramon/botao-copiar-titulo-ir-para-o-ELO4
-// @version      2.3.6
+// @version      2.3.7
 // @description  Adiciona atalhos aos detalhes da comunicação no INFODIP para copiar o título eleitoral e abrir o cadastro do eleitor no ELO 4 em uma nova aba.
 // @author       Ramon Machado
 // @match        https://infodip.tse.jus.br/infodip/comunicacao/consulta/detalhes.jsp*
@@ -85,17 +85,34 @@
                 outline: 2px solid currentColor; outline-offset: 2px;
             }
             #${NOTIFICACAO} {
+                --destaque: #12624d; --fundo-icone: #e4f5ed;
                 position: fixed; top: 20px; right: 20px; z-index: 10000;
-                background: #2e7d32; color: white; padding: 8px 16px;
-                border-radius: 5px; font: 12px Arial, sans-serif;
-                box-shadow: 0 2px 10px rgba(0,0,0,.3);
+                display: flex; align-items: center; gap: 11px;
+                box-sizing: border-box; width: 244px; max-width: calc(100vw - 40px);
+                padding: 11px 13px; background: #fff; color: #203348;
+                border: 1px solid #dce4e8; border-inline-start: 3px solid var(--destaque);
+                border-radius: 11px; box-shadow: 0 5px 18px rgba(15, 23, 42, .15);
+                font: 13px/1.35 Arial, sans-serif;
             }
-            #${NOTIFICACAO}[data-erro] { background: #b3261e; }
+            #${NOTIFICACAO}[data-erro] {
+                --destaque: #a52231; --fundo-icone: #fcebee;
+            }
+            #${NOTIFICACAO} > svg {
+                flex: none; width: 34px; height: 34px; padding: 7px;
+                box-sizing: border-box; border-radius: 9px;
+                background: var(--fundo-icone); color: var(--destaque);
+            }
+            #${NOTIFICACAO} strong { display: block; font-weight: 700; }
+            #${NOTIFICACAO} span { display: block; margin-top: 3px; color: #4c5e70; }
+            #${NOTIFICACAO}:not([data-erro]) span {
+                font: 600 14px/1.3 ui-monospace, Consolas, monospace;
+                color: var(--destaque); white-space: nowrap;
+            }
         `;
         document.head.append(estilo);
     }
 
-    function notificar(mensagem, erro = false) {
+    function notificarCopia(numero = null) {
         let aviso = document.getElementById(NOTIFICACAO);
         if (!aviso) {
             aviso = document.createElement('div');
@@ -104,8 +121,18 @@
             document.body.append(aviso);
         }
 
-        aviso.textContent = mensagem;
+        const erro = numero === null;
+        const icone = criarIcone(erro ? 'M12 6v7m0 4h.01' : 'M5 12l4 4L19 6');
+        const conteudo = document.createElement('div');
+        const titulo = document.createElement('strong');
+        const detalhe = document.createElement('span');
+        titulo.textContent = erro ? 'Não foi possível copiar' : 'Título copiado';
+        detalhe.textContent = erro
+            ? 'Tente copiar novamente.'
+            : `${numero.slice(0, 4)} ${numero.slice(4, 8)} ${numero.slice(8)}`;
+        conteudo.append(titulo, detalhe);
         aviso.toggleAttribute('data-erro', erro);
+        aviso.replaceChildren(icone, conteudo);
         clearTimeout(temporizadorNotificacao);
         temporizadorNotificacao = setTimeout(() => aviso.remove(), 2000);
     }
@@ -146,9 +173,9 @@
             try {
                 await navigator.clipboard.writeText(numero);
                 estatisticas.copias++;
-                notificar(`Título copiado: ${numero}`);
+                notificarCopia(numero);
             } catch {
-                notificar('Não foi possível copiar o título eleitoral.', true);
+                notificarCopia();
             }
         });
 
